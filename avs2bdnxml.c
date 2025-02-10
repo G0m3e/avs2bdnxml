@@ -449,11 +449,6 @@ void write_png(char *dir, int file_id, uint8_t *image, int w, int h, int graphic
 	fclose(fh);
 }
 
-extern int asm_is_identical_sse2 (stream_info_t *s_info, char *img, char *img_old);
-extern int asm_is_empty_sse2 (stream_info_t *s_info, char *img);
-extern void asm_zero_transparent_sse2 (stream_info_t *s_info, char volatile *img);
-extern void asm_swap_rb_sse2 (stream_info_t *s_info, char volatile *img, char volatile *out);
-
 int is_identical_c (stream_info_t *s_info, char *img, char *img_old)
 {
 	uint32_t *max = (uint32_t *)(img + s_info->i_width * s_info->i_height * 4);
@@ -514,65 +509,24 @@ void swap_rb_c (stream_info_t *s_info, char *img, char *out)
 	}
 }
 
-int detect_sse2 ()
-{
-	static int detection = -1;
-	unsigned int func = 0x00000001;
-	unsigned int eax, ebx, ecx, edx;
-
-	if (detection != -1)
-		return detection;
-
-	asm volatile
-	(
-		"cpuid\n"
-		: "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx)
-		: "a" (func)
-	);
-
-	/* SSE2:  edx & 0x04000000
-	 * SSSE3: ecx & 0x00000200
-	 */
-	detection = (edx & 0x04000000) ? 1 : 0;
-
-	if (detection)
-		fprintf(stderr, "CPU: Using SSE2 optimized functions.\n");
-	else
-		fprintf(stderr, "CPU: Using pure C functions.\n");
-
-	return detection;
-}
-
 int is_identical (stream_info_t *s_info, char *img, char *img_old)
 {
-	if (detect_sse2())
-		return asm_is_identical_sse2(s_info, img, img_old);
-	else
-		return is_identical_c(s_info, img, img_old);
+	return is_identical_c(s_info, img, img_old);
 }
 
 int is_empty (stream_info_t *s_info, char *img)
 {
-	if (detect_sse2())
-		return asm_is_empty_sse2(s_info, img);
-	else
-		return is_empty_c(s_info, img);
+	return is_empty_c(s_info, img);
 }
 
 void zero_transparent (stream_info_t *s_info, char *img)
 {
-	if (detect_sse2())
-		return asm_zero_transparent_sse2(s_info, img);
-	else
-		return zero_transparent_c(s_info, img);
+	return zero_transparent_c(s_info, img);
 }
 
 void swap_rb (stream_info_t *s_info, char *img, char *out)
 {
-	if (detect_sse2())
-		return asm_swap_rb_sse2(s_info, img, out);
-	else
-		return swap_rb_c(s_info, img, out);
+	return swap_rb_c(s_info, img, out);
 }
 
 /* SMPTE non-drop time code */
@@ -645,10 +599,10 @@ void print_usage ()
 		);
 }
 
-extern char *rindex(const char *s, int c);
+// extern char *rindex(const char *s, int c);
 int is_extension(char *filename, char *check_ext)
 {
-	char *ext = rindex(filename, '.');
+	char *ext = strrchr(filename, '.');
 
 	if (ext == NULL)
 		return 0;
@@ -1068,9 +1022,6 @@ int main (int argc, char *argv[])
 
 	/* Get timecode offset. */
 	to = parse_tc(t_offset, fps);
-
-	/* Detect CPU features */
-	detect_sse2();
 
 	/* Get video info and allocate buffer */
 	if (open_file_avis(avs_filename, &avis_hnd, s_info))
