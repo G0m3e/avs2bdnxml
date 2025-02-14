@@ -39,6 +39,11 @@
 #endif
 #endif
 
+#ifdef _WIN32
+#include <wchar.h>
+#include <windows.h>
+#endif
+
 #ifndef DEBUG
 #define DEBUG 0
 #endif
@@ -467,9 +472,15 @@ sup_writer_t *new_sup_writer (char *filename, int im_w, int im_h, int fps_num, i
 {
 	sup_writer_t *sw = malloc(sizeof(sup_writer_t));
 
+#ifdef _WIN32
+    wchar_t wfilename[512];
+    MultiByteToWideChar(CP_UTF8, 0, filename, -1, wfilename, sizeof(wfilename) / sizeof(wchar_t));
+    if ((sw->fh = _wfopen(wfilename, L"wb")) == NULL)
+#else
 	if ((sw->fh = fopen(filename, "wb")) == NULL)
+#endif
 	{
-		perror("Error opening output SUP/PGS file");
+        perror("Error opening output SUP/PGS file");
 		exit(1);
 	}
 
